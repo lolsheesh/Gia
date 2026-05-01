@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gia</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@300;400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0e0e0e;
+  --surface: #161616;
+  --surface2: #1e1e1e;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.1);
+  --text: #e8e8e6;
+  --muted: rgba(232,232,230,0.38);
+  --accent: #c8b89a;
+  --accent-dim: rgba(200,184,154,0.15);
+  --green: #6dbd8a;
+  --red: #e07070;
+  --sans: 'Geist', sans-serif;
+  --serif: 'Instrument Serif', serif;
+  --mono: 'Geist Mono', monospace;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow: hidden;
+}
+
+/* subtle grain overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ── LAYOUT ── */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── HEADER ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.wordmark {
+  font-family: var(--serif);
+  font-size: 20px;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  font-style: italic;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  transition: all 0.15s;
+  font-family: var(--sans);
+}
+.icon-btn:hover { border-color: var(--border2); color: var(--text); background: var(--surface); }
+
+.clock {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+/* ── CHAT ── */
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scroll-behavior: smooth;
+}
+
+.chat::-webkit-scrollbar { width: 3px; }
+.chat::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── MESSAGES ── */
+.msg-row {
+  display: flex;
+  padding: 4px 24px;
+  animation: fadeSlide 0.25s ease forwards;
+  opacity: 0;
+}
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg-row.user { justify-content: flex-end; }
+.msg-row.gia  { justify-content: flex-start; }
+
+.bubble {
+  max-width: 520px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  position: relative;
+}
+
+.msg-row.gia .bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+  color: var(--text);
+}
+
+.msg-row.user .bubble {
+  background: var(--accent-dim);
+  border: 1px solid rgba(200,184,154,0.2);
+  border-bottom-right-radius: 4px;
+  color: var(--text);
+}
+
+.bubble.system {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--mono);
+  padding: 2px 0;
+  max-width: 100%;
+  text-align: center;
+  width: 100%;
+}
+
+/* ── TYPING ── */
+.typing-row {
+  display: flex;
+  padding: 6px 24px;
+}
+.typing-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  padding: 12px 16px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.typing-bubble span {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: blink 1.2s infinite;
+}
+.typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+.typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%,60%,100%{opacity:0.3;transform:scale(1)} 30%{opacity:1;transform:scale(1.2)} }
+
+/* ── INPUT ── */
+.input-area {
+  padding: 12px 24px 20px;
+  flex-shrink: 0;
+}
+
+.input-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 10px 12px 10px 16px;
+  transition: border-color 0.2s;
+}
+.input-box:focus-within { border-color: rgba(200,184,154,0.35); }
+
+textarea {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  resize: none;
+  min-height: 22px;
+  max-height: 100px;
+  line-height: 1.55;
+}
+textarea::placeholder { color: var(--muted); }
+
+.send {
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #0e0e0e;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.send:hover { opacity: 0.85; transform: scale(1.04); }
+.send:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+/* ── MEMORY PANEL (slide in) ── */
+.memory-panel {
+  position: fixed;
+  top: 52px; right: 0; bottom: 0;
+  width: 300px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.memory-panel.open { transform: translateX(0); }
+
+.mem-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mem-title {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mem-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mem-body::-webkit-scrollbar { width: 3px; }
+.mem-body::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.mem-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mem-btn {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mem-btn:hover { color: var(--text); border-color: var(--accent); }
+.mem-btn.danger:hover { color: var(--red); border-color: var(--red); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0;
+  transition: all 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── HIDDEN ── */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="wordmark">Gia</div>
+    <div class="header-actions">
+      <div class="clock" id="clock">--:--</div>
+      <button class="icon-btn" title="Memory" onclick="toggleMemory()">◎</button>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat" id="chat"></div>
+
+  <!-- INPUT -->
+  <div class="input-area">
+    <div class="input-box">
+      <textarea id="input" placeholder="Say something..." rows="1"
+        onkeydown="handleKey(event)" oninput="resize(this)"></textarea>
+      <button class="send" id="sendBtn" onclick="send()">↑</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- MEMORY PANEL -->
+<div class="memory-panel" id="memPanel">
+  <div class="mem-header">
+    <span class="mem-title">What Gia knows</span>
+    <button class="icon-btn" onclick="toggleMemory()">✕</button>
+  </div>
+  <div class="mem-body" id="memBody">Nothing saved yet.</div>
+  <div class="mem-footer">
+    <button class="mem-btn" onclick="exportMemory()">Export</button>
+    <button class="mem-btn" onclick="importMemory()">Import</button>
+    <button class="mem-btn danger" onclick="clearMemory()">Clear all</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- HIDDEN FILE INPUT -->
+<input type="file" id="fileInput" accept=".json" class="hidden" onchange="handleImport(event)">
+
+<script>
+// ══════════════════════════════════════════
+//  STATE & MEMORY
+// ══════════════════════════════════════════
+let history = [];       // conversation for API
+let memoryDoc = '';     // personality document
+let isOnboarded = false;
+
+function loadMemory() {
+  try {
+    memoryDoc = localStorage.getItem('gia_memory') || '';
+    isOnboarded = localStorage.getItem('gia_onboarded') === 'true';
+    const h = localStorage.getItem('gia_history');
+    if (h) history = JSON.parse(h).slice(-30); // keep last 30
+  } catch(e) {}
+}
+
+function saveMemory() {
+  try {
+    localStorage.setItem('gia_memory', memoryDoc);
+    localStorage.setItem('gia_onboarded', isOnboarded);
+    localStorage.setItem('gia_history', JSON.stringify(history.slice(-30)));
+    document.getElementById('memBody').textContent = memoryDoc || 'Nothing saved yet.';
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════
+//  CLOCK
+// ══════════════════════════════════════════
+function startClock() {
+  const el = document.getElementById('clock');
+  const tick = () => {
+    const n = new Date();
+    el.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+  };
+  tick(); setInterval(tick, 1000);
+}
+
+// ══════════════════════════════════════════
+//  CHAT UI
+// ══════════════════════════════════════════
+function addMsg(role, text, type='') {
+  const chat = document.getElementById('chat');
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + (type === 'system' ? 'gia' : role);
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble' + (type === 'system' ? ' system' : '');
+  bubble.innerHTML = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+  row.appendChild(bubble);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById('chat');
+  const row = document.createElement('div');
+  row.className = 'typing-row'; row.id = 'typing';
+  row.innerHTML = `<div class="typing-bubble"><span></span><span></span><span></span></div>`;
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function hideTyping() {
+  document.querySelectorAll('.typing-row').forEach(el => el.remove());
+}
+
+function showToast(msg, duration=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ══════════════════════════════════════════
+//  SYSTEM PROMPT
+// ══════════════════════════════════════════
+function buildSystem() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  const dateStr = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+  return `You are Gia — a personal AI companion, not a productivity tool or assistant. You're a friend first.
+
+CURRENT TIME: ${timeStr}, ${dateStr}
+
+PERSONALITY:
+- Chill, real, direct — like a smart friend who actually listens
+- Short replies always: 1-2 lines max. Never paragraphs. Never bullet lists in casual chat
+- No hype words: never say "Great!", "Amazing!", "Let's go!", "Of course!", "Certainly!" — just talk normally
+- No corporate AI tone ever
+- You can joke, be sarcastic lightly, be honest even if it's not what they want to hear
+- You remember everything the user has told you and bring it up naturally
+
+MEMORY DOCUMENT (everything you know about this person):
+${memoryDoc ? memoryDoc : '(nothing yet — this is a new user, get to know them)'}
+
+ONBOARDING (if memory is empty):
+- Just ask their name naturally in first message — nothing else
+- Over the next few messages, learn what they do, what they're working on, their routine — through natural conversation, not a form
+- Never ask more than one question at a time
+- Feel like a new friend getting to know someone, not an intake form
+
+MEMORY UPDATES:
+- At the end of EVERY reply, append a hidden memory update in this exact format:
+  |||MEMORY_UPDATE|||
+  [updated full memory document — include everything known so far, add new things learned this message, keep it concise]
+  |||END_MEMORY|||
+- The memory update is invisible to the user — only used internally
+- Keep memory as bullet points, short and factual: name, age, location, work, routine, goals, struggles, preferences, relationships, things mentioned
+
+BEING A COMPANION:
+- User can talk about anything — problems, random thoughts, daily life, work, feelings
+- If they vent, listen first, don't jump to advice unless asked
+- If they ask for accountability on work or tasks, help them stay on track
+- If they're clearly procrastinating or avoiding work they mentioned, call it out lightly — 'bro just go do it, we can talk after' type energy. Not harsh, just real
+- If they want to just chat, chat
+- If they mention anything about games, work, tasks — remember and factor it in next time
+
+GAME/TASK ACCOUNTABILITY (only if user has set this up with you):
+- Be lenient but firm — offer deals, not hard blocks
+- 1-2 line responses always
+- Never preach`;
+}
+
+// ══════════════════════════════════════════
+//  API CALL
+// ══════════════════════════════════════════
+async function callGia(userText, silent=false) {
+  history.push({ role: 'user', content: userText });
+
+  showTyping();
+  if (!silent) document.getElementById('sendBtn').disabled = true;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: buildSystem(),
+        messages: history
+      })
+    });
+
+    const data = await res.json();
+    let raw = data.content?.[0]?.text || "something went wrong, try again";
+
+    // Extract and apply memory update
+    const memMatch = raw.match(/\|\|\|MEMORY_UPDATE\|\|\|([\s\S]*?)\|\|\|END_MEMORY\|\|\|/);
+    if (memMatch) {
+      memoryDoc = memMatch[1].trim();
+      raw = raw.replace(/\|\|\|MEMORY_UPDATE\|\|\|[\s\S]*?\|\|\|END_MEMORY\|\|\|/, '').trim();
+      if (!isOnboarded && memoryDoc.length > 50) isOnboarded = true;
+    }
+
+    history.push({ role: 'assistant', content: raw });
+    saveMemory();
+
+    hideTyping();
+    setTimeout(() => addMsg('gia', raw), 50);
+
+  } catch(err) {
+    hideTyping();
+    setTimeout(() => addMsg('gia', "can't connect right now — check your internet."), 50);
+  }
+
+  if (!silent) document.getElementById('sendBtn').disabled = false;
+}
+
+// ══════════════════════════════════════════
+//  SEND
+// ══════════════════════════════════════════
+async function send() {
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  addMsg('user', text);
+  await callGia(text);
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+function resize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+// ══════════════════════════════════════════
+//  MEMORY PANEL
+// ══════════════════════════════════════════
+function toggleMemory() {
+  const panel = document.getElementById('memPanel');
+  document.getElementById('memBody').textContent = memoryDoc || 'Nothing saved yet.';
+  panel.classList.toggle('open');
+}
+
+function exportMemory() {
+  const data = { memory: memoryDoc, history: history, onboarded: isOnboarded };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'gia-memory.json';
+  a.click();
+  showToast('Memory exported');
+}
+
+function importMemory() {
+  document.getElementById('fileInput').click();
+}
+
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.memory) memoryDoc = data.memory;
+      if (data.history) history = data.history;
+      if (data.onboarded) isOnboarded = data.onboarded;
+      saveMemory();
+      showToast('Memory restored');
+      document.getElementById('memBody').textContent = memoryDoc || 'Nothing saved yet.';
+    } catch { showToast('Invalid file'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function clearMemory() {
+  if (!confirm('Clear everything Gia knows about you?')) return;
+  memoryDoc = ''; history = []; isOnboarded = false;
+  localStorage.removeItem('gia_memory');
+  localStorage.removeItem('gia_onboarded');
+  localStorage.removeItem('gia_history');
+  document.getElementById('memBody').textContent = 'Nothing saved yet.';
+  document.getElementById('chat').innerHTML = '';
+  showToast('Memory cleared');
+  toggleMemory();
+  startConvo();
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+function startConvo() {
+  if (isOnboarded && memoryDoc) {
+    // returning user — Gia greets naturally based on memory
+    callGia('[system: user just opened the app. greet them briefly based on what you know about them. 1 line max. check in naturally.]', true);
+  } else {
+    // new user — start fresh
+    callGia('[system: new user. start the conversation. just say hi and ask their name. nothing else. 1 line.]', true);
+  }
+}
+
+loadMemory();
+startClock();
+startConvo();
+</script>
+</body>
+</html>
